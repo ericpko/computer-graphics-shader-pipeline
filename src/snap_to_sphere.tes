@@ -1,0 +1,51 @@
+// Hint: Crib from your model_view_projection.vs
+// Layout:
+//                                         Indicate that we're dealing with
+//                                         triangles in CCW order and using a
+//                                         sane spacing.
+layout(triangles, equal_spacing, ccw) in;
+// Uniforms
+uniform mat4 view;
+uniform mat4 proj;
+uniform float animation_seconds;
+uniform bool is_moon;
+// Inputs:
+//                    array of 3 3D patch corner positions
+in vec4 pos_es_in[];
+// Outputs:
+//                   projected, view, and model transformed 3D position
+out vec4 pos_fs_in;
+//                        view and model transformed 3D position
+out vec4 view_pos_fs_in;
+//                      view and model transformed 3D normal
+out vec3 normal_fs_in;
+//                      3D position _before_ applying model, view or projection
+//                      transformations (e.g., point on unit sphere)
+out vec3 sphere_fs_in;
+// expects: interpolat, model,
+void main()
+{
+  /////////////////////////////////////////////////////////////////////////////
+  // Get the 3D point on the sphere
+  sphere_fs_in = normalize(interpolate(gl_TessCoord, pos_es_in[0].xyz, pos_es_in[1].xyz, pos_es_in[2].xyz));
+
+  // Get the model matrix transformation
+  mat4 model = model(is_moon, animation_seconds);
+  if (is_moon) {
+    // If is_moon is true, then shrink the model by 30% and shift away
+    // from the origin by 2 units
+    vec3 shift = vec3(2, 0, 2);
+    model = model * translate(shift) * uniform_scale(0.3);
+  }
+
+  view_pos_fs_in = view * model * vec4(sphere_fs_in, 1.0);
+  pos_fs_in = proj * view_pos_fs_in;
+
+  // Transform the normal vector. (Page 126)
+  mat4 N = transpose(inverse(view)) * transpose(inverse(model));
+  normal_fs_in = (N * vec4(sphere_fs_in, 1.0)).xyz;
+
+
+  gl_Position = pos_fs_in;
+  /////////////////////////////////////////////////////////////////////////////
+}
